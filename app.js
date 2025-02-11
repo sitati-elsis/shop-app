@@ -3,19 +3,20 @@ const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const session = require('express-session');
+const MongoDBStore = require('connect-mongodb-session')(session);
 const dotenv = require('dotenv');
-const Session = require('express-session');
-const MongoDBSessionStore = require('connect-mongodb-session')(Session);
 
 const errorController = require('./controllers/error');
 const User = require('./models/user');
-// const User = require('./models/user');
 
 dotenv.config();
 
+const MONGODB_URI = process.env.MONGODB_URL;
+
 const app = express();
-const sessionStore = new MongoDBSessionStore({
-  uri: process.env.MONGODB_URL,
+const store = new MongoDBStore({
+  uri: MONGODB_URI,
   collection: 'sessions',
 });
 
@@ -29,16 +30,19 @@ const authRoutes = require('./routes/auth');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(
-  Session({
+  session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: sessionStore,
+    store: store,
   })
 );
 
 app.use((req, res, next) => {
-  User.findById('67a5f3d31e80cf396d9024d9')
+  if (!req.session.user) {
+    return next();
+  }
+  User.findById(req.session.user._id)
     .then((user) => {
       req.user = user;
       next();
@@ -51,23 +55,24 @@ app.use(shopRoutes);
 app.use(authRoutes);
 
 app.use(errorController.get404);
-mongoose
-  .connect(process.env.MONGODB_URL)
-  .then(() => {
-    console.log('Connected to server and listening at port 3000');
-    User.findOne()
-      .then((user) => {
-        if (!user) {
-          const user = new User({
-            name: 'Max',
-            email: 'test@mail.com',
-            carts: { items: [] },
-          });
-          user.save();
-        }
-      })
-      .catch((err) => console.log(err));
 
+mongoose
+  .connect(MONGODB_URI)
+  .then((result) => {
+    User.findOne().then((user) => {
+      if (!user) {
+        const user = new User({
+          name: 'Max',
+          email: 'max@test.com',
+          cart: {
+            items: [],
+          },
+        });
+        user.save();
+      }
+    });
     app.listen(3000);
   })
-  .catch((err) => console.log(err));
+  .catch((err) => {
+    console.log(err);
+  });
