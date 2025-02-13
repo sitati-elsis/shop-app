@@ -5,19 +5,19 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
-const dotenv = require('dotenv')
+const dotenv = require('dotenv');
 
 const errorController = require('./controllers/error');
 const User = require('./models/user');
 
-dotenv.config()
+dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URL
+const MONGODB_URI = process.env.MONGODB_URL;
 
 const app = express();
 const store = new MongoDBStore({
   uri: MONGODB_URI,
-  collection: 'sessions'
+  collection: 'sessions',
 });
 
 app.set('view engine', 'ejs');
@@ -34,7 +34,7 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: store
+    store: store,
   })
 );
 
@@ -43,11 +43,11 @@ app.use((req, res, next) => {
     return next();
   }
   User.findById(req.session.user._id)
-    .then(user => {
+    .then((user) => {
       req.user = user;
       next();
     })
-    .catch(err => console.log(err));
+    .catch((err) => console.log(err));
 });
 
 app.use('/admin', adminRoutes);
@@ -58,9 +58,9 @@ app.use(errorController.get404);
 
 mongoose
   .connect(MONGODB_URI)
-  .then(result => {
+  .then((result) => {
     app.listen(3000);
   })
-  .catch(err => {
+  .catch((err) => {
     console.log(err);
   });
